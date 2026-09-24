@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>SEI ETF Calculator</title>
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+    <main class="container">
+
+        <h1>SEI ETF Calculator</h1>
+        <p class="subtitle">Engine Torque Factor Calculator</p>
+
+        <section class="input-section">
+
+            <h2>Power Check Data</h2>
+
+            <div class="form-group">
+                <label for="engine">Engine</label>
+                <select id="engine">
+                    <option value="T701C">T701C</option>
+                    <option value="T701D-CC">T701D/CC</option>
+                    <option value="T701D-DC">T701D/DC</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="fat">FAT (°C)</label>
+                <input type="number" id="fat" step="1">
+            </div>
+
+            <div class="form-group">
+                <label for="pa">Pressure Altitude (ft)</label>
+                <input type="number" id="pa" step="1">
+            </div>
+
+            <div class="form-group">
+                <label for="kias">KIAS</label>
+                <input type="number" id="kias" step="1">
+            </div>
+
+            <div class="form-group">
+                <label for="trq">TRQ (%)</label>
+                <input type="number" id="trq" step="0.1">
+            </div>
+
+            <div class="form-group">
+                <label for="tgt">TGT (°C)</label>
+                <input type="number" id="tgt" step="1">
+            </div>
+
+            <div class="form-group">
+                <label for="ng">NG (%)</label>
+                <input type="number" id="ng" step="0.1">
+            </div>
+
+            <button id="calculate-btn" type="button">
+                Calculate
+            </button>
+
+        </section>
+
+
+        <section class="results-section">
+
+            <h2>ETF Calculation</h2>
+
+            <div class="result-row">
+                <span>TSF</span>
+                <strong id="result-tsf">---</strong>
+            </div>
+
+            <div class="result-row">
+                <span>%TRQTSF</span>
+                <strong id="result-trqtsf">---</strong>
+            </div>
+
+            <div class="result-row">
+                <span>Target TGTREF</span>
+                <strong id="result-tgtref">---</strong>
+            </div>
+
+            <div class="result-row">
+                <span>ΔTGT</span>
+                <strong id="result-delta-tgt">---</strong>
+            </div>
+
+            <div class="result-row">
+                <span>ΔTRQ / ΔTGT</span>
+                <strong id="result-delta-factor">---</strong>
+            </div>
+
+            <div class="result-row">
+                <span>TRQADJ</span>
+                <strong id="result-trqadj">---</strong>
+            </div>
+
+            <div class="result-row">
+                <span>TTV</span>
+                <strong id="result-ttv">---</strong>
+            </div>
+
+            <div class="result-row">
+                <span>STR</span>
+                <strong id="result-str">---</strong>
+            </div>
+
+            <div class="result-row final-result">
+                <span>ETF</span>
+                <strong id="result-etf">---</strong>
+            </div>
+
+        </section>
+
+        <p class="warning">
+            Calculation aid based on SEI-671 chart data.
+            Verify results against the applicable technical publication.
+        </p>
+
+    </main>
+
+    <script src="js/interpolation.js"></script>
+    <script src="js/calculator.js"></script>
+
+</body>
+</html>
