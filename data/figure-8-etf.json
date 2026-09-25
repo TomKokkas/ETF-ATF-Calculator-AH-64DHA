@@ -1,0 +1,92 @@
+{
+  "figure": 8,
+  "name": "Determining Engine Torque Factor (ETF)",
+  "source": "SEI-671 Change 3",
+  "engine": [
+    "T701",
+    "T701C",
+    "T701D/CC",
+    "T701D/DC"
+  ],
+  "axes": {
+    "etf": {
+      "min": 0.7,
+      "max": 1.1
+    },
+    "str": {
+      "min": 0.7,
+      "max": 1
+    }
+  },
+  "fat_line_range_c": {
+    "min": -5,
+    "max": 35
+  },
+  "str_etf_one": 1,
+  "notes": "Each FAT line is a straight line, points [ETF, STR], from its upper end (ETF 1.0 / STR 1.0) to its lower end at the left chart edge (ETF 0.70), calibrated from the SEI vector Figure 8 gridlines. FAT -5 C and below uses the -5 C line; FAT 35 C and above uses the 35 C line; STR >= 1.0 gives ETF 1.0.",
+  "lines": [
+    {
+      "fat_c": -5,
+      "points": [
+        [0.99999, 1.00001],
+        [0.70012, 0.91292]
+      ]
+    },
+    {
+      "fat_c": 0,
+      "points": [
+        [0.99999, 1.00001],
+        [0.70046, 0.90017]
+      ]
+    },
+    {
+      "fat_c": 5,
+      "points": [
+        [0.99999, 1.00001],
+        [0.70067, 0.88022]
+      ]
+    },
+    {
+      "fat_c": 10,
+      "points": [
+        [0.99999, 1.00001],
+        [0.70053, 0.8601]
+      ]
+    },
+    {
+      "fat_c": 15,
+      "points": [
+        [0.99999, 1.00001],
+        [0.7006, 0.8347]
+      ]
+    },
+    {
+      "fat_c": 20,
+      "points": [
+        [0.99999, 1.00001],
+        [0.70026, 0.79995]
+      ]
+    },
+    {
+      "fat_c": 25,
+      "points": [
+        [0.99999, 1.00001],
+        [0.70012, 0.76994]
+      ]
+    },
+    {
+      "fat_c": 30,
+      "points": [
+        [0.99999, 1.00001],
+        [0.70032, 0.72994]
+      ]
+    },
+    {
+      "fat_c": 35,
+      "points": [
+        [0.99999, 1.00001],
+        [0.70012, 0.70042]
+      ]
+    }
+  ]
+}

@@ -509,3 +509,122 @@ function calculateFigure7TTV(
         upperTtv: upperTtv
     };
 }
+
+
+/*
+ * FIGURE 8
+ * Determine Engine Torque Factor (ETF) from STR and FAT.
+ *
+ * Each FAT line is a straight line, points [ETF, STR],
+ * from its upper end (ETF 1.0 / STR 1.0) down to its
+ * lower end at the left chart edge (ETF 0.70).
+ */
+function etfOnLine(line, str) {
+    const upper = line.points[0];
+    const lower = line.points[1];
+
+    /*
+     * No extrapolation below the chart (ETF < 0.70).
+     */
+    if (str < lower[1]) {
+        throw new Error(
+            `STR ${str} is below the Figure 8 chart for the ${line.fat_c} °C line (ETF below 0.70).`
+        );
+    }
+
+    return interpolateLinear(
+        str,
+        lower[1],
+        lower[0],
+        upper[1],
+        upper[0]
+    );
+}
+
+
+function calculateFigure8ETF(
+    figure8Data,
+    str,
+    fat
+) {
+
+    /*
+     * SEI note: when STR is greater than or equal
+     * to 1.0, assume ETF to be 1.0.
+     */
+    if (str >= figure8Data.str_etf_one) {
+        return {
+            etf: 1.0,
+            chartFat: null,
+            lowerFat: null,
+            upperFat: null,
+            lowerEtf: 1.0,
+            upperEtf: 1.0
+        };
+    }
+
+    /*
+     * SEI notes: FAT -5 °C and below is plotted on the
+     * -5 °C line; FAT 35 °C and above on the 35 °C line.
+     */
+    const chartFat = Math.min(
+        Math.max(fat, figure8Data.fat_line_range_c.min),
+        figure8Data.fat_line_range_c.max
+    );
+
+    const lines = [...figure8Data.lines].sort(
+        (a, b) => a.fat_c - b.fat_c
+    );
+
+    let lower = lines[0];
+    let upper = lines[lines.length - 1];
+
+    for (let i = 0; i < lines.length - 1; i++) {
+        if (
+            chartFat >= lines[i].fat_c &&
+            chartFat <= lines[i + 1].fat_c
+        ) {
+            lower = lines[i];
+            upper = lines[i + 1];
+            break;
+        }
+    }
+
+    if (chartFat === lower.fat_c) {
+        upper = lower;
+    } else if (chartFat === upper.fat_c) {
+        lower = upper;
+    }
+
+    const lowerEtf = etfOnLine(lower, str);
+    const upperEtf = lower === upper
+        ? lowerEtf
+        : etfOnLine(upper, str);
+
+    /*
+     * FAT between two plotted lines: linear interpolation
+     * of ETF with respect to FAT, at the same STR.
+     * Implementation decision - the SEI does not define
+     * how to treat FAT between the plotted lines.
+     */
+    const etf = interpolateLinear(
+        chartFat,
+        lower.fat_c,
+        lowerEtf,
+        upper.fat_c,
+        upperEtf
+    );
+
+    if (etf < figure8Data.axes.etf.min) {
+        throw new Error("ETF is below the Figure 8 chart (0.70).");
+    }
+
+    return {
+        etf: etf,
+        chartFat: chartFat,
+        lowerFat: lower.fat_c,
+        upperFat: upper.fat_c,
+        lowerEtf: lowerEtf,
+        upperEtf: upperEtf
+    };
+}

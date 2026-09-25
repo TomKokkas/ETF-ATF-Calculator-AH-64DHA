@@ -2,17 +2,19 @@ let figure1Data = null;
 let figure4Data = null;
 let figure5Data = null;
 let figure7Data = null;
+let figure8Data = null;
 
 
 /*
  * Load chart data
  */
 async function loadChartData() {
-const [figure1Response, figure4Response, figure5Response, figure7Response] = await Promise.all([
+const [figure1Response, figure4Response, figure5Response, figure7Response, figure8Response] = await Promise.all([
     fetch("data/figure-1-tsf.json"),
     fetch("data/figure-4-tgtref.json"),
     fetch("data/figure-5-dtrq-dtgt.json"),
-    fetch("data/figure-7-ttv.json")
+    fetch("data/figure-7-ttv.json"),
+    fetch("data/figure-8-etf.json")
 ]);
     if (!figure1Response.ok) {
         throw new Error("Could not load Figure 1 data.");
@@ -29,14 +31,20 @@ const [figure1Response, figure4Response, figure5Response, figure7Response] = awa
         throw new Error("Could not load Figure 7 data.");
     }
 
+    if (!figure8Response.ok) {
+        throw new Error("Could not load Figure 8 data.");
+    }
+
     figure1Data = await figure1Response.json();
     figure4Data = await figure4Response.json();
     figure5Data = await figure5Response.json();
     figure7Data = await figure7Response.json();
+    figure8Data = await figure8Response.json();
     console.log("Figure 1 loaded:", figure1Data);
     console.log("Figure 4 loaded:", figure4Data);
     console.log("Figure 5 loaded:", figure5Data);
     console.log("Figure 7 loaded:", figure7Data);
+    console.log("Figure 8 loaded:", figure8Data);
 }
 
 
@@ -135,11 +143,11 @@ function clearResults() {
  * Figure 7 -> TTV
  * STR = TRQADJ / TTV
  *
- * Figure 8 will be added next.
+ * Figure 8 -> ETF
  */
 function calculate() {
     try {
-        if (!figure1Data || !figure4Data || !figure5Data || !figure7Data) {
+        if (!figure1Data || !figure4Data || !figure5Data || !figure7Data || !figure8Data) {
             throw new Error("Chart data has not loaded yet.");
         }
 
@@ -219,6 +227,22 @@ const deltaFactor = round3(deltaFactorRaw);
         const str = round3(strRaw);
 
         /*
+         * FIGURE 8
+         *
+         * STR enters Figure 8 at the SEI 0.001 rounding.
+         * The SEI Figure 8 example uses STR 0.98, but the
+         * SEI gives no rule for rounding STR to 0.01.
+         */
+        const figure8Result = calculateFigure8ETF(
+            figure8Data,
+            str,
+            fat
+        );
+
+        const etfRaw = figure8Result.etf;
+        const etf = round3(etfRaw);
+
+        /*
          * Display available results.
          */
         setResult("result-tsf", tsf.toFixed(3));
@@ -256,7 +280,7 @@ setResult(
         );
 
         setResult("result-str", str.toFixed(3));
-        setResult("result-etf", "Pending Fig. 8");
+        setResult("result-etf", etf.toFixed(3));
 
         /*
          * Debug information.
@@ -295,7 +319,17 @@ setResult(
             },
 
             strRaw,
-            str
+            str,
+
+            figure8: {
+                chartFat: figure8Result.chartFat,
+                lowerFat: figure8Result.lowerFat,
+                upperFat: figure8Result.upperFat,
+                lowerEtf: figure8Result.lowerEtf,
+                upperEtf: figure8Result.upperEtf,
+                rawEtf: etfRaw,
+                etf
+            }
         });
 
     } catch (error) {
