@@ -36,7 +36,60 @@ function pointOnBezier(segment, t) {
 }
 
 
+/*
+ * Figure 4 chart TGT limit.
+ * Common to T701C / T701D-CC / T701D-DC (AH-64).
+ */
+const FIGURE4_TGT_LIMIT = 866;
+
+/*
+ * A curve is treated as reaching the TGT limit
+ * when its hot-side end point was digitized
+ * within this tolerance of the limit line.
+ */
+const FIGURE4_LIMIT_TOLERANCE = 1;
+
+
+/*
+ * Hot-side (highest FAT) end point of a curve.
+ * FAT is monotonic along every Figure 4 curve,
+ * so the extreme lies on a segment end point.
+ */
+function hotEndOfCurve(curve) {
+    let hotEnd = null;
+
+    for (const segment of curve.segments) {
+
+        for (const point of [segment[0], segment[3]]) {
+
+            if (hotEnd === null || point[1] > hotEnd.fat) {
+                hotEnd = {
+                    tgtref: point[0],
+                    fat: point[1]
+                };
+            }
+        }
+    }
+
+    return hotEnd;
+}
+
+
 function tgtRefOnCurve(curve, fat) {
+
+    /*
+     * Beyond the point where the curve meets
+     * the chart TGT limit, TGTREF is the limit.
+     */
+    const hotEnd = hotEndOfCurve(curve);
+
+    if (
+        fat >= hotEnd.fat &&
+        hotEnd.tgtref >= FIGURE4_TGT_LIMIT - FIGURE4_LIMIT_TOLERANCE
+    ) {
+        return FIGURE4_TGT_LIMIT;
+    }
+
     let bestPoint = null;
     let bestDifference = Infinity;
 
@@ -69,7 +122,7 @@ function tgtRefOnCurve(curve, fat) {
         throw new Error("Unable to evaluate Figure 4 curve.");
     }
 
-    return bestPoint.tgtref;
+    return Math.min(bestPoint.tgtref, FIGURE4_TGT_LIMIT);
 }
 
 
@@ -185,14 +238,17 @@ function calculateFigure4TgtRef(
      * Interpolate between the two surrounding
      * pressure-altitude curves.
      */
-    const tgtref = interpolateLinear(
-        pressureAltitude,
+    const tgtref = Math.min(
+        interpolateLinear(
+            pressureAltitude,
 
-        bounds.lower.pa_ft,
-        lowerTgtRef,
+            bounds.lower.pa_ft,
+            lowerTgtRef,
 
-        bounds.upper.pa_ft,
-        upperTgtRef
+            bounds.upper.pa_ft,
+            upperTgtRef
+        ),
+        FIGURE4_TGT_LIMIT
     );
 
     return {
