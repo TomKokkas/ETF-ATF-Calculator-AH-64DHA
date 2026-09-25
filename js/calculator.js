@@ -1,16 +1,18 @@
 let figure1Data = null;
 let figure4Data = null;
 let figure5Data = null;
+let figure7Data = null;
 
 
 /*
  * Load chart data
  */
 async function loadChartData() {
-const [figure1Response, figure4Response, figure5Response] = await Promise.all([
+const [figure1Response, figure4Response, figure5Response, figure7Response] = await Promise.all([
     fetch("data/figure-1-tsf.json"),
     fetch("data/figure-4-tgtref.json"),
-    fetch("data/figure-5-dtrq-dtgt.json")
+    fetch("data/figure-5-dtrq-dtgt.json"),
+    fetch("data/figure-7-ttv.json")
 ]);
     if (!figure1Response.ok) {
         throw new Error("Could not load Figure 1 data.");
@@ -23,12 +25,18 @@ const [figure1Response, figure4Response, figure5Response] = await Promise.all([
     throw new Error("Could not load Figure 5 data.");
     }
 
+    if (!figure7Response.ok) {
+        throw new Error("Could not load Figure 7 data.");
+    }
+
     figure1Data = await figure1Response.json();
     figure4Data = await figure4Response.json();
     figure5Data = await figure5Response.json();
+    figure7Data = await figure7Response.json();
     console.log("Figure 1 loaded:", figure1Data);
     console.log("Figure 4 loaded:", figure4Data);
     console.log("Figure 5 loaded:", figure5Data);
+    console.log("Figure 7 loaded:", figure7Data);
 }
 
 
@@ -121,11 +129,17 @@ function clearResults() {
  * Figure 4 -> Target TGTREF
  * ΔTGT = Target TGTREF - measured TGT
  *
- * Figures 5, 7 and 8 will be added next.
+ * Figure 5 -> ΔTRQ / ΔTGT
+ * TRQADJ = %TRQTSF + (ΔTRQ / ΔTGT × ΔTGT)
+ *
+ * Figure 7 -> TTV
+ * STR = TRQADJ / TTV
+ *
+ * Figure 8 will be added next.
  */
 function calculate() {
     try {
-        if (!figure1Data || !figure4Data) {
+        if (!figure1Data || !figure4Data || !figure5Data || !figure7Data) {
             throw new Error("Chart data has not loaded yet.");
         }
 
@@ -187,6 +201,24 @@ const deltaFactor = round3(deltaFactorRaw);
 );
 
         /*
+         * FIGURE 7
+         */
+        const figure7Result = calculateFigure7TTV(
+            figure7Data,
+            fat,
+            pa
+        );
+
+        const ttvRaw = figure7Result.ttv;
+        const ttv = round3(ttvRaw);
+
+        /*
+         * STR = TRQADJ / TTV
+         */
+        const strRaw = trqAdj / ttv;
+        const str = round3(strRaw);
+
+        /*
          * Display available results.
          */
         setResult("result-tsf", tsf.toFixed(3));
@@ -218,8 +250,12 @@ setResult(
     "result-trqadj",
     trqAdj.toFixed(3) + " %"
 );
-        setResult("result-ttv", "Pending Fig. 7");
-        setResult("result-str", "Pending Fig. 7");
+        setResult(
+            "result-ttv",
+            ttv.toFixed(3) + " %"
+        );
+
+        setResult("result-str", str.toFixed(3));
         setResult("result-etf", "Pending Fig. 8");
 
         /*
@@ -247,7 +283,19 @@ setResult(
                 displayedTgtRef: tgtRefDisplay
             },
 
-            deltaTgt
+            deltaTgt,
+
+            figure7: {
+                lowerPA: figure7Result.lowerPA,
+                upperPA: figure7Result.upperPA,
+                lowerTtv: figure7Result.lowerTtv,
+                upperTtv: figure7Result.upperTtv,
+                rawTtv: ttvRaw,
+                ttv
+            },
+
+            strRaw,
+            str
         });
 
     } catch (error) {

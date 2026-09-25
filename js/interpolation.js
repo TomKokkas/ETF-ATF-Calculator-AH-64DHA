@@ -336,3 +336,176 @@ function calculateFigure5DeltaFactor(figure5Data, pressureAltitude) {
         matchedPA: bestPoint.pa
     };
 }
+
+
+/*
+ * FIGURE 7
+ * Determine Target Torque Value (TTV) from FAT
+ * and Pressure Altitude.
+ *
+ * Each PA curve is a chain of cubic Bezier and
+ * straight segments, points [TTV %, FAT °C],
+ * running from FAT +55 down to -55 °C.
+ * Segments at TTV 100 are the 100% Q TRANS LIMIT.
+ *
+ * FAT decreases monotonically along every segment,
+ * so TTV is solved directly for the requested FAT.
+ */
+function ttvOnSegment(segment, fat) {
+    const points = segment.points;
+
+    if (segment.type === "line") {
+        return interpolateLinear(
+            fat,
+            points[0][1],
+            points[0][0],
+            points[1][1],
+            points[1][0]
+        );
+    }
+
+    let lowT = 0;
+    let highT = 1;
+
+    for (let i = 0; i < 60; i++) {
+        const midT = (lowT + highT) / 2;
+
+        const midFat = cubicBezier(
+            points[0][1],
+            points[1][1],
+            points[2][1],
+            points[3][1],
+            midT
+        );
+
+        if (midFat > fat) {
+            lowT = midT;
+        } else {
+            highT = midT;
+        }
+    }
+
+    return cubicBezier(
+        points[0][0],
+        points[1][0],
+        points[2][0],
+        points[3][0],
+        (lowT + highT) / 2
+    );
+}
+
+
+function ttvOnCurve(curve, fat) {
+    const segments = curve.segments;
+    const lastSegment = segments[segments.length - 1];
+
+    const topFat = segments[0].points[0][1];
+    const bottomFat = lastSegment.points[lastSegment.points.length - 1][1];
+
+    /*
+     * Digitized curve ends lie within a few
+     * hundredths of a degree of ±55 °C.
+     */
+    const curveFat = Math.min(Math.max(fat, bottomFat), topFat);
+
+    for (const segment of segments) {
+        const points = segment.points;
+        const segmentTop = points[0][1];
+        const segmentBottom = points[points.length - 1][1];
+
+        if (curveFat <= segmentTop && curveFat >= segmentBottom) {
+            return ttvOnSegment(segment, curveFat);
+        }
+    }
+
+    throw new Error("Unable to evaluate Figure 7 curve.");
+}
+
+
+function calculateFigure7TTV(
+    figure7Data,
+    fat,
+    pressureAltitude
+) {
+
+    const minFat = figure7Data.fat_range_c.min;
+    const maxFat = figure7Data.fat_range_c.max;
+
+    if (fat < minFat || fat > maxFat) {
+        throw new Error(
+            `FAT must be between ${minFat} and ${maxFat} °C for Figure 7.`
+        );
+    }
+
+    if (
+        pressureAltitude < 0 ||
+        pressureAltitude > 10000
+    ) {
+        throw new Error(
+            "Pressure Altitude must be between 0 and 10000 ft for Figure 7."
+        );
+    }
+
+    const ttvLimit = figure7Data.ttv_limit_percent;
+
+    /*
+     * Same PA-curve bracketing as Figure 4.
+     */
+    const bounds = getFigure4BoundingCurves(
+        figure7Data.curves,
+        pressureAltitude
+    );
+
+    const lowerTtv = Math.min(
+        ttvOnCurve(bounds.lower, fat),
+        ttvLimit
+    );
+
+    /*
+     * Exact PA curve.
+     */
+    if (bounds.lower.pa_ft === bounds.upper.pa_ft) {
+
+        return {
+            ttv: lowerTtv,
+
+            lowerPA: bounds.lower.pa_ft,
+            upperPA: bounds.upper.pa_ft,
+
+            lowerTtv: lowerTtv,
+            upperTtv: lowerTtv
+        };
+    }
+
+    const upperTtv = Math.min(
+        ttvOnCurve(bounds.upper, fat),
+        ttvLimit
+    );
+
+    /*
+     * Interpolate between the two surrounding
+     * pressure-altitude curves.
+     */
+    const ttv = Math.min(
+        interpolateLinear(
+            pressureAltitude,
+
+            bounds.lower.pa_ft,
+            lowerTtv,
+
+            bounds.upper.pa_ft,
+            upperTtv
+        ),
+        ttvLimit
+    );
+
+    return {
+        ttv: ttv,
+
+        lowerPA: bounds.lower.pa_ft,
+        upperPA: bounds.upper.pa_ft,
+
+        lowerTtv: lowerTtv,
+        upperTtv: upperTtv
+    };
+}
