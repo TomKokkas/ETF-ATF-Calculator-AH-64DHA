@@ -43,14 +43,6 @@ function pointOnBezier(segment, t) {
 const FIGURE4_TGT_LIMIT = 866;
 
 /*
- * A curve is treated as reaching the TGT limit
- * when its hot-side end point was digitized
- * within this tolerance of the limit line.
- */
-const FIGURE4_LIMIT_TOLERANCE = 1;
-
-
-/*
  * Hot-side (highest FAT) end point of a curve.
  * FAT is monotonic along every Figure 4 curve,
  * so the extreme lies on a segment end point.
@@ -76,6 +68,16 @@ function hotEndOfCurve(curve) {
 
 
 function tgtRefOnCurve(curve, fat) {
+    return evaluateFigure4Curve(curve, fat).tgtref;
+}
+
+// Classification refers to the existing numeric 866 °C evaluation, not to
+// intersection with the differently positioned drawn line in the source PDF.
+function evaluateFigure4Curve(curve, fat) {
+    const evaluated = raw => ({
+        tgtref: Math.min(raw, FIGURE4_TGT_LIMIT),
+        limitState: raw >= FIGURE4_TGT_LIMIT ? "mathematical_intersection" : "unlimited"
+    });
 
     /*
      * Beyond the point where the curve meets
@@ -85,44 +87,52 @@ function tgtRefOnCurve(curve, fat) {
 
     if (
         fat >= hotEnd.fat &&
-        hotEnd.tgtref >= FIGURE4_TGT_LIMIT - FIGURE4_LIMIT_TOLERANCE
+        curve.hot_end_on_tgt_limit === true
     ) {
-        return FIGURE4_TGT_LIMIT;
+        const hasNumericIntersection = curve.segments.some(segment =>
+            Math.min(segment[0][0], segment[3][0]) <= FIGURE4_TGT_LIMIT &&
+            Math.max(segment[0][0], segment[3][0]) >= FIGURE4_TGT_LIMIT
+        );
+        return {
+            tgtref: FIGURE4_TGT_LIMIT,
+            limitState: hasNumericIntersection ? "mathematical_intersection" : "source_termination"
+        };
     }
 
-    let bestPoint = null;
-    let bestDifference = Infinity;
-
-    /*
-     * Search each Bezier segment for the point
-     * corresponding to the requested FAT.
-     *
-     * We use a dense search because the source
-     * is a digitized chart curve rather than a
-     * mathematical equation supplied by the SEI.
-     */
+    // Solve only inside a source segment. The numerical tolerance below
+    // controls solver error; it does not claim this accuracy for the chart.
     for (const segment of curve.segments) {
-
-        for (let i = 0; i <= 10000; i++) {
-
-            const t = i / 10000;
-
-            const point = pointOnBezier(segment, t);
-
-            const difference = Math.abs(point.fat - fat);
-
-            if (difference < bestDifference) {
-                bestDifference = difference;
-                bestPoint = point;
+        const firstFat = segment[0][1];
+        const lastFat = segment[3][1];
+        if (fat < Math.min(firstFat, lastFat) || fat > Math.max(firstFat, lastFat)) {
+            continue;
+        }
+        const increasing = lastFat > firstFat;
+        for (let i = 1; i < segment.length; i++) {
+            if (increasing ? segment[i][1] < segment[i - 1][1]
+                : segment[i][1] > segment[i - 1][1]) {
+                throw new Error("Figure 4 FAT segment is not monotonic.");
             }
         }
-    }
+        if (fat === firstFat) return evaluated(segment[0][0]);
+        if (fat === lastFat) return evaluated(segment[3][0]);
 
-    if (bestPoint === null) {
-        throw new Error("Unable to evaluate Figure 4 curve.");
+        let lower = 0;
+        let upper = 1;
+        for (let i = 0; i < 64; i++) {
+            const middle = (lower + upper) / 2;
+            const point = pointOnBezier(segment, middle);
+            if ((point.fat < fat) === increasing) lower = middle;
+            else upper = middle;
+            const lowerPoint = pointOnBezier(segment, lower);
+            const upperPoint = pointOnBezier(segment, upper);
+            if (Math.abs(upperPoint.tgtref - lowerPoint.tgtref) <= 1e-9) {
+                return evaluated(pointOnBezier(segment, (lower + upper) / 2).tgtref);
+            }
+        }
+        throw new Error("Figure 4 FAT solver did not converge.");
     }
-
-    return Math.min(bestPoint.tgtref, FIGURE4_TGT_LIMIT);
+    throw new Error(`No verified Figure 4 result: FAT ${fat} °C is outside the digitized curve at ${curve.pa_ft} ft; no endpoint substitution or extrapolation is available.`);
 }
 
 
@@ -142,6 +152,9 @@ function getFigure4BoundingCurves(curves, pressureAltitude) {
     const sortedCurves = [...curves].sort(
         (a, b) => a.pa_ft - b.pa_ft
     );
+
+    const exact = sortedCurves.find(curve => curve.pa_ft === pressureAltitude);
+    if (exact) return { lower: exact, upper: exact };
 
     if (pressureAltitude <= sortedCurves[0].pa_ft) {
         return {
@@ -186,6 +199,7 @@ function calculateFigure4TgtRef(
 ) {
 
     if (
+        !Number.isFinite(fat) ||
         fat < figure4Data.axes.fat_c.min ||
         fat > figure4Data.axes.fat_c.max
     ) {
@@ -195,6 +209,7 @@ function calculateFigure4TgtRef(
     }
 
     if (
+        !Number.isFinite(pressureAltitude) ||
         pressureAltitude < 0 ||
         pressureAltitude > 10000
     ) {
@@ -208,10 +223,11 @@ function calculateFigure4TgtRef(
         pressureAltitude
     );
 
-    const lowerTgtRef = tgtRefOnCurve(
+    const lowerResult = evaluateFigure4Curve(
         bounds.lower,
         fat
     );
+    const lowerTgtRef = lowerResult.tgtref;
 
     /*
      * Exact PA curve.
@@ -219,6 +235,9 @@ function calculateFigure4TgtRef(
     if (bounds.lower.pa_ft === bounds.upper.pa_ft) {
 
         return {
+            status: "available",
+            lowerLimitState: lowerResult.limitState,
+            upperLimitState: lowerResult.limitState,
             tgtref: lowerTgtRef,
 
             lowerPA: bounds.lower.pa_ft,
@@ -229,10 +248,11 @@ function calculateFigure4TgtRef(
         };
     }
 
-    const upperTgtRef = tgtRefOnCurve(
+    const upperResult = evaluateFigure4Curve(
         bounds.upper,
         fat
     );
+    const upperTgtRef = upperResult.tgtref;
 
     /*
      * Interpolate between the two surrounding
@@ -251,8 +271,17 @@ function calculateFigure4TgtRef(
         FIGURE4_TGT_LIMIT
     );
 
+    // Conservative application policy, not an additional SEI procedure.
+    // Preserve the old interpolation only as a diagnostic estimate when
+    // exactly one neighbouring curve has reached the numeric/source limit.
+    const mixedLimit = (lowerResult.limitState !== "unlimited") !==
+        (upperResult.limitState !== "unlimited");
     return {
-        tgtref: tgtref,
+        status: mixedLimit ? "unverified_mixed_limit" : "available",
+        tgtref: mixedLimit ? null : tgtref,
+        diagnosticTgtRef: mixedLimit ? tgtref : null,
+        lowerLimitState: lowerResult.limitState,
+        upperLimitState: upperResult.limitState,
 
         lowerPA: bounds.lower.pa_ft,
         upperPA: bounds.upper.pa_ft,
@@ -268,73 +297,45 @@ function calculateFigure4TgtRef(
  * Figure 5 is stored as cubic Bezier segments.
  */
 function calculateFigure5DeltaFactor(figure5Data, pressureAltitude) {
-
-    const minPA = figure5Data.axes.pressure_altitude_ft.min;
-    const maxPA = figure5Data.axes.pressure_altitude_ft.max;
-
-    if (
-        pressureAltitude < minPA ||
-        pressureAltitude > maxPA
-    ) {
-        throw new Error(
-            `Pressure Altitude must be between ${minPA} and ${maxPA} ft for Figure 5.`
-        );
+    const nominal = figure5Data.axes.pressure_altitude_ft;
+    if (!Number.isFinite(pressureAltitude) || pressureAltitude < nominal.min || pressureAltitude > nominal.max) {
+        throw new Error(`Pressure Altitude must be between ${nominal.min} and ${nominal.max} ft for Figure 5.`);
     }
-
-    let bestPoint = null;
-    let bestDifference = Infinity;
-
+    // Derive actual coverage from the source path, never from nominal axes.
+    const first = figure5Data.segments[0][0];
+    const last = figure5Data.segments[figure5Data.segments.length - 1][3];
+    if (pressureAltitude < first[0] || pressureAltitude > last[0]) {
+        return {
+            status: "unverified_coverage", factor: null, matchedPA: null,
+            coverageMinPA: first[0], coverageMaxPA: last[0]
+        };
+    }
     for (const segment of figure5Data.segments) {
-
-        /*
-         * Dense evaluation of the original
-         * vector Bezier curve.
-         */
-        for (let i = 0; i <= 10000; i++) {
-
-            const t = i / 10000;
-
-            const pa = cubicBezier(
-                segment[0][0],
-                segment[1][0],
-                segment[2][0],
-                segment[3][0],
-                t
-            );
-
-            const factor = cubicBezier(
-                segment[0][1],
-                segment[1][1],
-                segment[2][1],
-                segment[3][1],
-                t
-            );
-
-            const difference = Math.abs(
-                pa - pressureAltitude
-            );
-
-            if (difference < bestDifference) {
-                bestDifference = difference;
-
-                bestPoint = {
-                    pa: pa,
-                    factor: factor
-                };
+        if (pressureAltitude < segment[0][0] || pressureAltitude > segment[3][0]) continue;
+        for (let i = 1; i < segment.length; i++) {
+            if (segment[i][0] < segment[i - 1][0]) throw new Error("Figure 5 PA segment is not monotonic.");
+        }
+        const resultAt = t => ({
+            status: "available",
+            factor: cubicBezier(segment[0][1], segment[1][1], segment[2][1], segment[3][1], t),
+            matchedPA: cubicBezier(segment[0][0], segment[1][0], segment[2][0], segment[3][0], t)
+        });
+        if (pressureAltitude === segment[0][0]) return resultAt(0);
+        if (pressureAltitude === segment[3][0]) return resultAt(1);
+        let lower = 0, upper = 1;
+        // Solver accuracy is numerical only, not source/chart accuracy.
+        for (let i = 0; i < 64; i++) {
+            const middle = (lower + upper) / 2;
+            const result = resultAt(middle);
+            if (result.matchedPA < pressureAltitude) lower = middle;
+            else upper = middle;
+            if (Math.abs(resultAt(upper).matchedPA - resultAt(lower).matchedPA) <= 1e-8) {
+                return resultAt((lower + upper) / 2);
             }
         }
+        throw new Error("Figure 5 PA solver did not converge.");
     }
-
-    if (bestPoint === null) {
-        throw new Error(
-            "Unable to evaluate Figure 5 curve."
-        );
-    }
-
-    return {
-        factor: bestPoint.factor,
-        matchedPA: bestPoint.pa
-    };
+    throw new Error("No verified Figure 5 result: Pressure Altitude lies in a gap in the source curve.");
 }
 
 

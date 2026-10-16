@@ -184,26 +184,31 @@ function calculate() {
             pa
         );
 
+        if (figure4Result.status === "unverified_mixed_limit") {
+            console.log("Figure 4 diagnostic estimate (not for performance calculation):", figure4Result);
+            throw new Error("Unverified Figure 4 interpolation: only one neighbouring PA curve has reached 866 °C. No final performance result is available. Verification against the approved SEI is required.");
+        }
         const tgtRefRaw = figure4Result.tgtref;
+        // SEI WP 0125 00, page 5, §18 NOTE: calculations to nearest 0.001.
+        // Display formatting is separate from the value used in arithmetic.
+        const tgtRefUsed = round3(tgtRefRaw);
+        const tgtRefDisplay = Math.round(tgtRefUsed).toFixed(0);
         const figure5Result = calculateFigure5DeltaFactor(
     figure5Data,
     pa
 );
 
 const deltaFactorRaw = figure5Result.factor;
+if (figure5Result.status === "unverified_coverage") {
+    throw new Error("No verified Figure 5 result: PA is outside the actual source-curve coverage. No final performance result is available. Verification against the approved SEI is required.");
+}
 const deltaFactor = round3(deltaFactorRaw);
-
-        /*
-         * Keep raw chart interpolation internally.
-         * Display Target TGTREF to nearest whole °C
-         * for the current verification stage.
-         */
-        const tgtRefDisplay = Math.round(tgtRefRaw);
 
         /*
          * ΔTGT = Target TGTREF - measured TGT
          */
-        const deltaTgt = tgtRefDisplay - tgt;
+        const deltaTgt = round3(tgtRefUsed - tgt);
+        const deltaTgtDisplay = Math.round(deltaTgt).toFixed(0);
         const trqAdj = round3(
     trqTsf + (deltaFactor * deltaTgt)
 );
@@ -259,7 +264,7 @@ const deltaFactor = round3(deltaFactorRaw);
 
         setResult(
             "result-delta-tgt",
-            deltaTgt.toFixed(0) + " °C"
+            deltaTgtDisplay + " °C"
         );
 
         /*
@@ -304,10 +309,17 @@ setResult(
                 lowerTgtRef: figure4Result.lowerTgtRef,
                 upperTgtRef: figure4Result.upperTgtRef,
                 rawTgtRef: tgtRefRaw,
+                usedTgtRef: tgtRefUsed,
                 displayedTgtRef: tgtRefDisplay
             },
 
             deltaTgt,
+
+            figure5: {
+                rawFactor: deltaFactorRaw,
+                usedFactor: deltaFactor,
+                matchedPA: figure5Result.matchedPA
+            },
 
             figure7: {
                 lowerPA: figure7Result.lowerPA,
