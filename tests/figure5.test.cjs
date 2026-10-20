@@ -95,13 +95,13 @@ test('no nearest-sample plateaus or jump at the former worst-case boundary', () 
 
 function calculate(pa = '6000', calculatorCode = read('js/calculator.js')) {
     const elements = {};
-    for (const [id, value] of Object.entries({ pa, fat: '-16', tgt: '736', trq: '100', kias: '130', ng: '99' })) elements[id] = { value };
+    for (const [id, value] of Object.entries({ pa, fat: '-16', tgt: '736', trq: '100', kias: pa === '0' ? '110' : '130', ng: '99' })) elements[id] = { value };
     let debug, laterCalls = 0;
     const alerts = [];
     const browser = vm.createContext({
         document: { getElementById(id) { return elements[id] ??= { textContent: 'stale', addEventListener() {} }; } },
         fetch: () => new Promise(() => {}), alert: m => alerts.push(m),
-        console: { error() {}, log(label, value) { if (label === 'Calculation debug:') debug = value; } }
+        ETF_ATF_DEBUG: true, console: { error() {}, log(label, value) { if (label === 'Calculation debug:') debug = value; } }
     });
     vm.runInContext(code, browser);
     vm.runInContext(calculatorCode, browser);
@@ -116,8 +116,8 @@ test('published 0.17 example uses 0.170 and correct unformatted delta in TRQADJ'
     const r = calculate();
     assert.deepEqual(r.alerts, []);
     assert.equal(r.elements['result-delta-factor'].textContent, '0.170');
-    assert.equal(r.debug.deltaTgt, -7.802);
-    assert.equal(r.elements['result-trqadj'].textContent, '97.674 %');
+    assert.equal(r.debug.deltaTgt, -8);
+    assert.equal(r.elements['result-trqadj'].textContent, '97.640 %');
     assert.equal(r.elements['result-tgtref'].textContent, '728 °C');
     assert.equal(r.elements['result-delta-tgt'].textContent, '-8 °C');
     const alternative = calculate('6000', read('js/calculator.js').replace('deltaFactor.toFixed(3)', '"999"'));

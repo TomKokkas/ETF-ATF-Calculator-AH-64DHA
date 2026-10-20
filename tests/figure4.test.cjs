@@ -152,7 +152,7 @@ function runCalculator(overrides = {}, calculatorCode = read('js/calculator.js')
         document: { getElementById(id) { return elements[id] ??= { textContent: 'stale result', addEventListener() {} }; } },
         fetch: () => new Promise(() => {}),
         alert(message) { if (expectBlocked) alerts.push(message); else throw Error(message); },
-        console: { log(label, details) { if (label === 'Calculation debug:') debug = details; }, error() {} }
+        ETF_ATF_DEBUG: true, console: { log(label, details) { if (label === 'Calculation debug:') debug = details; }, error() {} }
     });
     vm.runInContext(code, browser);
     vm.runInContext(calculatorCode, browser);
@@ -187,26 +187,26 @@ test('unverified PA/FAT cannot produce or retain final performance results', () 
     }
 });
 
-test('calculator displays integers while preserving 0.001 arithmetic', () => {
+test('calculator uses approved chart readings and 0.001 arithmetic', () => {
     const { debug, elements } = runCalculator();
     assert.equal(debug.figure4.lowerPA, 6000);
     near(debug.figure4.rawTgtRef, 728.1983047248461);
-    assert.equal(debug.figure4.usedTgtRef, 728.198);
+    assert.equal(debug.figure4.usedTgtRef, 728);
     assert.equal(debug.figure4.displayedTgtRef, '728');
     assert.equal(elements['result-tgtref'].textContent, '728 °C');
-    assert.equal(debug.deltaTgt, -7.802);
+    assert.equal(debug.deltaTgt, -8);
     assert.equal(elements['result-delta-tgt'].textContent, '-8 °C');
-    assert.equal(elements['result-trqadj'].textContent, '97.674 %');
+    assert.equal(elements['result-trqadj'].textContent, '97.640 %');
 });
 
 test('display formatting cannot feed back into any numeric or downstream result', () => {
     const formatted = read('js/calculator.js');
     const decimalDisplay = formatted
-        .replace('Math.round(tgtRefUsed).toFixed(0)', 'tgtRefUsed.toFixed(3)')
-        .replace('Math.round(deltaTgt).toFixed(0)', 'deltaTgt.toFixed(3)');
+        .replace('tgtRefUsed.toFixed(0)', 'tgtRefUsed.toFixed(3)')
+        .replace('Number.isInteger(deltaTgt) ? deltaTgt.toFixed(0) : deltaTgt.toFixed(3)', 'deltaTgt.toFixed(3)');
     const sentinelDisplay = formatted
-        .replace('Math.round(tgtRefUsed).toFixed(0)', '"999"')
-        .replace('Math.round(deltaTgt).toFixed(0)', '"999"');
+        .replace('tgtRefUsed.toFixed(0)', '"999"')
+        .replace('Number.isInteger(deltaTgt) ? deltaTgt.toFixed(0) : deltaTgt.toFixed(3)', '"999"');
     assert.notEqual(decimalDisplay, formatted);
     assert.notEqual(sentinelDisplay, formatted);
     for (const values of [{}, { pa: '3038', fat: '-15.8', tgt: '683' }, { fat: '40', tgt: '866' }]) {

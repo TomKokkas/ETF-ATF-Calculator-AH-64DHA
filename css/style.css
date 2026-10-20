@@ -1,3 +1,8 @@
+:root {
+    --panel-border-color: #374151;
+    --panel-border-width: 1px;
+}
+
 * {
     box-sizing: border-box;
 }
@@ -31,7 +36,7 @@ h1 {
 .input-section,
 .results-section {
     background: #1f2937;
-    border: 1px solid #374151;
+    border: var(--panel-border-width) solid var(--panel-border-color);
     border-radius: 10px;
     padding: 25px;
     margin-bottom: 25px;
@@ -123,6 +128,12 @@ button:hover {
         padding: 15px 10px;
     }
 
+    .subtitle {
+        font-size: 0.9rem;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+    }
+
     .input-section,
     .results-section {
         padding: 18px;
@@ -133,3 +144,41 @@ button:hover {
         gap: 6px;
     }
 }
+
+#atf-status { line-height: 1.5; }
+#atf-status[data-state="below-minimum"] { color: #fca5a5; font-weight: bold; }
+
+.engine-tabs { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 0; }
+.engine-tabs button { appearance: none; position: relative; z-index: 0; margin: 0; padding: 16px 8px 18px; background: #111827; color: #9ca3af; border: 1px solid #374151; border-bottom: 1px solid transparent; border-radius: 10px 10px 0 0; box-shadow: none; transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease; }
+.engine-tabs button[aria-selected="true"] { z-index: 2; background: transparent; color: #f3f4f6; border-color: transparent; border-bottom: 1px solid transparent; box-shadow: none; }
+.engine-tabs button:hover { color: #f3f4f6; }
+.engine-tabs button:focus-visible { outline: 2px solid #60a5fa; outline-offset: 3px; }
+/* Keep the border width for unchanged form geometry, but remove its painted
+ * top edge at the source instead of covering it with a one-pixel overlay. */
+#engine-panel > .input-section { border-top-color: transparent; border-top-left-radius: 0; border-top-right-radius: 0; }
+#result-atf[data-state="below-minimum"] { color: #fca5a5; }
+
+@media (prefers-reduced-motion: reduce) {
+    .engine-tabs button { transition: none; }
+}
+
+/* Keep the existing outer spacing; the tab gap shows the page background. */
+.engine-surface { position: relative; isolation: isolate; background: transparent; margin-bottom: 25px; }
+.engine-surface .input-section { margin-bottom: 0; padding-bottom: 12px; }
+#engine-panel .input-section, #engine-panel .results-section { background: transparent; border-color: transparent; }
+#engine-panel .results-section { margin-bottom: 0; padding-top: 12px; }
+.engine-outline { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; overflow: visible; pointer-events: none; }
+.engine-outline path { fill: #1f2937; stroke: var(--panel-border-color); stroke-width: var(--panel-border-width); vector-effect: non-scaling-stroke; }
+
+/* Continue only the inactive outer edge through the outline's 10px corner. */
+.engine-tabs button[aria-selected="false"]::after {
+    content: "";
+    position: absolute;
+    top: calc(100% + 1px);
+    width: 1px;
+    height: 10px;
+    background: #374151;
+    pointer-events: none;
+}
+#engine-tab-1[aria-selected="false"]::after { left: -1px; }
+#engine-tab-2[aria-selected="false"]::after { right: -1px; }

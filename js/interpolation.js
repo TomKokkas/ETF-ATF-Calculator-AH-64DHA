@@ -340,292 +340,140 @@ function calculateFigure5DeltaFactor(figure5Data, pressureAltitude) {
 
 
 /*
- * FIGURE 7
- * Determine Target Torque Value (TTV) from FAT
- * and Pressure Altitude.
- *
- * Each PA curve is a chain of cubic Bezier and
- * straight segments, points [TTV %, FAT °C],
- * running from FAT +55 down to -55 °C.
- * Segments at TTV 100 are the 100% Q TRANS LIMIT.
- *
- * FAT decreases monotonically along every segment,
- * so TTV is solved directly for the requested FAT.
+ * FIGURE 7: original disjoint paths and explicit shared-limit coverage.
  */
 function ttvOnSegment(segment, fat) {
-    const points = segment.points;
-
-    if (segment.type === "line") {
-        return interpolateLinear(
-            fat,
-            points[0][1],
-            points[0][0],
-            points[1][1],
-            points[1][0]
-        );
+    const p=segment.points, first=p[0], last=p[p.length-1];
+    if(!Number.isFinite(fat)||fat<Math.min(first[1],last[1])||fat>Math.max(first[1],last[1])) throw new Error("Figure 7 FAT is outside this source segment.");
+    if(fat===first[1]) return first[0];
+    if(fat===last[1]) return last[0];
+    if(segment.type==="line") return interpolateLinear(fat,first[1],first[0],last[1],last[0]);
+    const up=last[1]>first[1];
+    for(let i=1;i<p.length;i++) if(up?p[i][1]<p[i-1][1]:p[i][1]>p[i-1][1]) throw new Error("Figure 7 FAT segment is not monotonic.");
+    let lo=0,hi=1;
+    for(let i=0;i<60;i++) {
+        const t=(lo+hi)/2, y=cubicBezier(p[0][1],p[1][1],p[2][1],p[3][1],t);
+        if((y<fat)===up) lo=t; else hi=t;
     }
-
-    let lowT = 0;
-    let highT = 1;
-
-    for (let i = 0; i < 60; i++) {
-        const midT = (lowT + highT) / 2;
-
-        const midFat = cubicBezier(
-            points[0][1],
-            points[1][1],
-            points[2][1],
-            points[3][1],
-            midT
-        );
-
-        if (midFat > fat) {
-            lowT = midT;
-        } else {
-            highT = midT;
-        }
-    }
-
-    return cubicBezier(
-        points[0][0],
-        points[1][0],
-        points[2][0],
-        points[3][0],
-        (lowT + highT) / 2
-    );
+    return cubicBezier(p[0][0],p[1][0],p[2][0],p[3][0],(lo+hi)/2);
 }
 
-
-function ttvOnCurve(curve, fat) {
-    const segments = curve.segments;
-    const lastSegment = segments[segments.length - 1];
-
-    const topFat = segments[0].points[0][1];
-    const bottomFat = lastSegment.points[lastSegment.points.length - 1][1];
-
-    /*
-     * Digitized curve ends lie within a few
-     * hundredths of a degree of ±55 °C.
-     */
-    const curveFat = Math.min(Math.max(fat, bottomFat), topFat);
-
-    for (const segment of segments) {
-        const points = segment.points;
-        const segmentTop = points[0][1];
-        const segmentBottom = points[points.length - 1][1];
-
-        if (curveFat <= segmentTop && curveFat >= segmentBottom) {
-            return ttvOnSegment(segment, curveFat);
-        }
+function figure7AtStoredPA(data, fat, pa) {
+    const shared=data.shared_limit;
+    const mapping=pa<=shared.sl_1.pa_max?shared.sl_1:shared.pa_regions.find(r=>r.pa_ft===pa);
+    const onLimit=mapping&&fat>=mapping.fat_min&&fat<=mapping.fat_max;
+    const candidates=[];
+    for(const path of data.paths.filter(p=>p.pa_ft===pa)) for(const s of path.segments) {
+        const first=s.points[0],last=s.points[s.points.length-1];
+        if(fat>=Math.min(first[1],last[1])&&fat<=Math.max(first[1],last[1])) candidates.push({path:path.id,value:ttvOnSegment(s,fat)});
     }
-
-    throw new Error("Unable to evaluate Figure 7 curve.");
+    const values=candidates.map(c=>c.value);
+    if(onLimit) values.push(shared.value_percent);
+    const unique=[...new Set(values)];
+    if(unique.length!==1) return {status:unique.length?"unverified_ambiguous":"unverified_coverage",ttv:null,pa,sourceCandidates:candidates,sharedLimitApplicable:Boolean(onLimit)};
+    const value=unique[0],range=data.operating_range.ttv_percent;
+    if(value<range.min||value>range.max) return {status:"outside_operating_ttv",ttv:null,pa,sourceCandidates:candidates};
+    return {status:"available",ttv:value,pa,basis:onLimit?"shared_100_limit":"source_path",sourceCandidates:candidates};
 }
 
-
-function calculateFigure7TTV(
-    figure7Data,
-    fat,
-    pressureAltitude
-) {
-
-    const minFat = figure7Data.fat_range_c.min;
-    const maxFat = figure7Data.fat_range_c.max;
-
-    if (fat < minFat || fat > maxFat) {
-        throw new Error(
-            `FAT must be between ${minFat} and ${maxFat} °C for Figure 7.`
-        );
+function calculateFigure7TTV(data, fat, pressureAltitude) {
+    const range=data.operating_range;
+    if(!Number.isFinite(fat)||fat<range.fat_c.min||fat>range.fat_c.max) throw new Error(`FAT must be between ${range.fat_c.min} and ${range.fat_c.max} ?C for Figure 7.`);
+    if(!Number.isFinite(pressureAltitude)||pressureAltitude<range.pressure_altitude_ft.min||pressureAltitude>range.pressure_altitude_ft.max) throw new Error("Pressure Altitude must be between 0 and 10000 ft for Figure 7.");
+    const shared=data.shared_limit.sl_1;
+    if(pressureAltitude<=shared.pa_max) {
+        const r=figure7AtStoredPA(data,fat,pressureAltitude);
+        return {...r,lowerPA:pressureAltitude,upperPA:pressureAltitude,lowerTtv:r.ttv,upperTtv:r.ttv};
     }
-
-    if (
-        pressureAltitude < 0 ||
-        pressureAltitude > 10000
-    ) {
-        throw new Error(
-            "Pressure Altitude must be between 0 and 10000 ft for Figure 7."
-        );
+    // PA knots reference source labels, not additional geometric curves.
+    const knots=[shared.pa_max,...new Set(data.paths.map(p=>p.pa_ft))].sort((a,b)=>a-b);
+    const exact=knots.find(pa=>pa===pressureAltitude);
+    if(exact!==undefined) {
+        const r=figure7AtStoredPA(data,fat,exact);
+        return {...r,lowerPA:exact,upperPA:exact,lowerTtv:r.ttv,upperTtv:r.ttv};
     }
-
-    const ttvLimit = figure7Data.ttv_limit_percent;
-
-    /*
-     * Same PA-curve bracketing as Figure 4.
-     */
-    const bounds = getFigure4BoundingCurves(
-        figure7Data.curves,
-        pressureAltitude
-    );
-
-    const lowerTtv = Math.min(
-        ttvOnCurve(bounds.lower, fat),
-        ttvLimit
-    );
-
-    /*
-     * Exact PA curve.
-     */
-    if (bounds.lower.pa_ft === bounds.upper.pa_ft) {
-
-        return {
-            ttv: lowerTtv,
-
-            lowerPA: bounds.lower.pa_ft,
-            upperPA: bounds.upper.pa_ft,
-
-            lowerTtv: lowerTtv,
-            upperTtv: lowerTtv
-        };
-    }
-
-    const upperTtv = Math.min(
-        ttvOnCurve(bounds.upper, fat),
-        ttvLimit
-    );
-
-    /*
-     * Interpolate between the two surrounding
-     * pressure-altitude curves.
-     */
-    const ttv = Math.min(
-        interpolateLinear(
-            pressureAltitude,
-
-            bounds.lower.pa_ft,
-            lowerTtv,
-
-            bounds.upper.pa_ft,
-            upperTtv
-        ),
-        ttvLimit
-    );
-
-    return {
-        ttv: ttv,
-
-        lowerPA: bounds.lower.pa_ft,
-        upperPA: bounds.upper.pa_ft,
-
-        lowerTtv: lowerTtv,
-        upperTtv: upperTtv
-    };
+    const i=knots.findIndex(pa=>pa>pressureAltitude);
+    const lower=figure7AtStoredPA(data,fat,knots[i-1]),upper=figure7AtStoredPA(data,fat,knots[i]);
+    const info={lowerPA:lower.pa,upperPA:upper.pa,lowerTtv:lower.ttv,upperTtv:upper.ttv,lowerBasis:lower.basis,upperBasis:upper.basis};
+    if(lower.status!=="available"||upper.status!=="available") return {...info,status:"unverified_interpolation_coverage",ttv:null,lowerStatus:lower.status,upperStatus:upper.status};
+    // Source-supported curve/limit endpoints may be interpolated; no blanket
+    // mixed-limit exclusion is imported from Figure 4. No new path is created.
+    const ttv=interpolateLinear(pressureAltitude,lower.pa,lower.ttv,upper.pa,upper.ttv);
+    if(ttv<range.ttv_percent.min||ttv>range.ttv_percent.max) return {...info,status:"outside_operating_ttv",ttv:null};
+    return {...info,status:"available",basis:"pa_interpolation",ttv};
 }
 
 
 /*
- * FIGURE 8
- * Determine Engine Torque Factor (ETF) from STR and FAT.
- *
- * Each FAT line is a straight line, points [ETF, STR],
- * from its upper end (ETF 1.0 / STR 1.0) down to its
- * lower end at the left chart edge (ETF 0.70).
+ * FIGURE 8: original strokes and separately approved label-gap computation.
  */
-function etfOnLine(line, str) {
-    const upper = line.points[0];
-    const lower = line.points[1];
-
-    /*
-     * No extrapolation below the chart (ETF < 0.70).
-     */
-    if (str < lower[1]) {
-        throw new Error(
-            `STR ${str} is below the Figure 8 chart for the ${line.fat_c} °C line (ETF below 0.70).`
-        );
-    }
-
-    return interpolateLinear(
-        str,
-        lower[1],
-        lower[0],
-        upper[1],
-        upper[0]
-    );
-}
-
-
-function calculateFigure8ETF(
-    figure8Data,
-    str,
-    fat
-) {
-
-    /*
-     * SEI note: when STR is greater than or equal
-     * to 1.0, assume ETF to be 1.0.
-     */
-    if (str >= figure8Data.str_etf_one) {
-        return {
-            etf: 1.0,
-            chartFat: null,
-            lowerFat: null,
-            upperFat: null,
-            lowerEtf: 1.0,
-            upperEtf: 1.0
-        };
-    }
-
-    /*
-     * SEI notes: FAT -5 °C and below is plotted on the
-     * -5 °C line; FAT 35 °C and above on the 35 °C line.
-     */
-    const chartFat = Math.min(
-        Math.max(fat, figure8Data.fat_line_range_c.min),
-        figure8Data.fat_line_range_c.max
-    );
-
-    const lines = [...figure8Data.lines].sort(
-        (a, b) => a.fat_c - b.fat_c
-    );
-
-    let lower = lines[0];
-    let upper = lines[lines.length - 1];
-
-    for (let i = 0; i < lines.length - 1; i++) {
-        if (
-            chartFat >= lines[i].fat_c &&
-            chartFat <= lines[i + 1].fat_c
-        ) {
-            lower = lines[i];
-            upper = lines[i + 1];
-            break;
+function etfOnLine(data, fatLine, str) {
+    const paths=data.paths.filter(p=>p.fat_c===fatLine);
+    const candidates=[];
+    for(const path of paths) {
+        const [a,b]=path.points;
+        if(str>=Math.min(a[1],b[1])&&str<=Math.max(a[1],b[1])) {
+            candidates.push({id:path.id,etf:str===a[1]?a[0]:str===b[1]?b[0]:interpolateLinear(str,a[1],a[0],b[1],b[0])});
         }
     }
-
-    if (chartFat === lower.fat_c) {
-        upper = lower;
-    } else if (chartFat === upper.fat_c) {
-        lower = upper;
+    const values=[...new Set(candidates.map(p=>p.etf))];
+    if(values.length===1)return {status:"available",basis:"source_stroke",etf:values[0],sourceSegments:candidates.map(p=>p.id)};
+    // Only these reviewed label interruptions are eligible. These are source
+    // endpoint references, not synthetic paths or an SEI interpolation rule.
+    const approved=[
+        [-5,1,2,[144.78,572.28],[162,582.12]],
+        [0,4,3,[149.22,555.24],[157.8,560.88]],
+        [5,5,6,[149.34,524.94],[158.64,532.32]],
+        [10,8,7,[149.16,494.34],[159,503.4]],
+        [15,9,10,[148.92,455.46],[157.98,465.36]],
+        [20,12,11,[148.56,402.42],[157.14,413.76]],
+        [25,17,18,[149.28,358.08],[156.9,369.6]],
+        [30,16,15,[149.64,297.84],[156.12,309.3]],
+        [35,13,14,[150.42,254.88],[156.48,266.82]]
+    ].find(g=>g[0]===fatLine);
+    if(values.length===0&&paths.length===2&&approved&&data.label_gap_policy==="inner_endpoint_interpolation") {
+        const low=paths.find(p=>p.id===`fat-stroke-${approved[1]}`);
+        const high=paths.find(p=>p.id===`fat-stroke-${approved[2]}`);
+        if(low&&high&&low.type==="line"&&high.type==="line") {
+            const li=low.points[0][1]>low.points[1][1]?0:1;
+            const hi=high.points[0][1]<high.points[1][1]?0:1;
+            const same=(a,b)=>a&&a[0]===b[0]&&a[1]===b[1];
+            const a=low.points[li],b=high.points[hi];
+            if(same(low.pdf_points[li],approved[3])&&same(high.pdf_points[hi],approved[4])&&str>a[1]&&str<b[1]) {
+                return {status:"available",basis:"label_gap_interpolation",
+                    etf:interpolateLinear(str,a[1],a[0],b[1],b[0]),sourceSegments:[low.id,high.id]};
+            }
+        }
     }
+    const ys=paths.flatMap(p=>p.points.map(p=>p[1]));
+    const inExtent=str>=Math.min(...ys)&&str<=Math.max(...ys);
+    return {status:values.length>1?"unverified_ambiguous":inExtent?"unverified_label_gap":"unverified_coverage",etf:null,sourceSegments:candidates.map(p=>p.id)};
+}
 
-    const lowerEtf = etfOnLine(lower, str);
-    const upperEtf = lower === upper
-        ? lowerEtf
-        : etfOnLine(upper, str);
-
-    /*
-     * FAT between two plotted lines: linear interpolation
-     * of ETF with respect to FAT, at the same STR.
-     * Implementation decision - the SEI does not define
-     * how to treat FAT between the plotted lines.
-     */
-    const etf = interpolateLinear(
-        chartFat,
-        lower.fat_c,
-        lowerEtf,
-        upper.fat_c,
-        upperEtf
-    );
-
-    if (etf < figure8Data.axes.etf.min) {
-        throw new Error("ETF is below the Figure 8 chart (0.70).");
-    }
-
-    return {
-        etf: etf,
-        chartFat: chartFat,
-        lowerFat: lower.fat_c,
-        upperFat: upper.fat_c,
-        lowerEtf: lowerEtf,
-        upperEtf: upperEtf
+function calculateFigure8ETF(data, str, fat) {
+    // Validate before any SEI rule, including STR >= 1.
+    if(!Number.isFinite(str)||!Number.isFinite(fat))throw new Error("Figure 8 requires finite STR and FAT inputs.");
+    const rules=data.rules;
+    if(str>=rules.str_at_or_above.threshold)return {
+        status:"available",basis:"sei_str_rule",etf:rules.str_at_or_above.etf,
+        chartFat:null,lowerFat:null,upperFat:null,lowerEtf:1,upperEtf:1
     };
+    // These FAT substitutions are explicit Figure 8 notes, not geometric clamping.
+    const chartFat=fat<=rules.fat_at_or_below.threshold_c?rules.fat_at_or_below.use_line_c:
+        fat>=rules.fat_at_or_above.threshold_c?rules.fat_at_or_above.use_line_c:fat;
+    const labels=data.fat_labels.map(p=>p.fat_c).sort((a,b)=>a-b);
+    const exact=labels.find(f=>f===chartFat);
+    let lowerFat,upperFat;
+    if(exact!==undefined){lowerFat=exact;upperFat=exact}
+    else{const i=labels.findIndex(f=>f>chartFat);lowerFat=labels[i-1];upperFat=labels[i]}
+    const lower=etfOnLine(data,lowerFat,str),upper=lowerFat===upperFat?lower:etfOnLine(data,upperFat,str);
+    const info={chartFat,lowerFat,upperFat,lowerEtf:lower.etf,upperEtf:upper.etf,lowerStatus:lower.status,upperStatus:upper.status,lowerBasis:lower.basis,upperBasis:upper.basis};
+    if(lower.status!=="available"||upper.status!=="available")return {
+        ...info,status:lowerFat===upperFat?lower.status:"unverified_fat_interpolation",etf:null
+    };
+    // Existing same-STR linear interpolation in FAT is an application choice.
+    // References may use a source stroke or an explicitly approved label gap.
+    return {...info,status:"available",basis:lowerFat===upperFat?lower.basis:"fat_interpolation",
+        usesLabelGapInterpolation:lower.basis==="label_gap_interpolation"||upper.basis==="label_gap_interpolation",
+        etf:interpolateLinear(chartFat,lowerFat,lower.etf,upperFat,upper.etf)};
 }

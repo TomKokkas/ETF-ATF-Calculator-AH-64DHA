@@ -8,7 +8,7 @@
     "T701D/CC",
     "T701D/DC"
   ],
-  "axes": {
+  "source_axes": {
     "etf": {
       "min": 0.7,
       "max": 1.1
@@ -18,75 +18,644 @@
       "max": 1
     }
   },
-  "fat_line_range_c": {
-    "min": -5,
-    "max": 35
-  },
-  "str_etf_one": 1,
-  "notes": "Each FAT line is a straight line, points [ETF, STR], from its upper end (ETF 1.0 / STR 1.0) to its lower end at the left chart edge (ETF 0.70), calibrated from the SEI vector Figure 8 gridlines. FAT -5 C and below uses the -5 C line; FAT 35 C and above uses the 35 C line; STR >= 1.0 gives ETF 1.0.",
-  "lines": [
+  "fat_labels": [
     {
       "fat_c": -5,
-      "points": [
-        [0.99999, 1.00001],
-        [0.70012, 0.91292]
+      "label": "≤ -5°C",
+      "segment_ids": [
+        "fat-stroke-1",
+        "fat-stroke-2"
       ]
     },
     {
       "fat_c": 0,
-      "points": [
-        [0.99999, 1.00001],
-        [0.70046, 0.90017]
+      "label": "0°C",
+      "segment_ids": [
+        "fat-stroke-3",
+        "fat-stroke-4"
       ]
     },
     {
       "fat_c": 5,
-      "points": [
-        [0.99999, 1.00001],
-        [0.70067, 0.88022]
+      "label": "5°C",
+      "segment_ids": [
+        "fat-stroke-5",
+        "fat-stroke-6"
       ]
     },
     {
       "fat_c": 10,
-      "points": [
-        [0.99999, 1.00001],
-        [0.70053, 0.8601]
+      "label": "10°C",
+      "segment_ids": [
+        "fat-stroke-7",
+        "fat-stroke-8"
       ]
     },
     {
       "fat_c": 15,
-      "points": [
-        [0.99999, 1.00001],
-        [0.7006, 0.8347]
+      "label": "15°C",
+      "segment_ids": [
+        "fat-stroke-9",
+        "fat-stroke-10"
       ]
     },
     {
       "fat_c": 20,
-      "points": [
-        [0.99999, 1.00001],
-        [0.70026, 0.79995]
+      "label": "20°C",
+      "segment_ids": [
+        "fat-stroke-11",
+        "fat-stroke-12"
       ]
     },
     {
       "fat_c": 25,
-      "points": [
-        [0.99999, 1.00001],
-        [0.70012, 0.76994]
+      "label": "25°C",
+      "segment_ids": [
+        "fat-stroke-17",
+        "fat-stroke-18"
       ]
     },
     {
       "fat_c": 30,
-      "points": [
-        [0.99999, 1.00001],
-        [0.70032, 0.72994]
+      "label": "30°C",
+      "segment_ids": [
+        "fat-stroke-15",
+        "fat-stroke-16"
       ]
     },
     {
       "fat_c": 35,
-      "points": [
-        [0.99999, 1.00001],
-        [0.70012, 0.70042]
+      "label": "≥ 35°C",
+      "segment_ids": [
+        "fat-stroke-13",
+        "fat-stroke-14"
       ]
     }
-  ]
+  ],
+  "rules": {
+    "source_page": "0125 00-14, Figure 8 NOTES",
+    "fat_at_or_below": {
+      "threshold_c": -5,
+      "use_line_c": -5
+    },
+    "fat_at_or_above": {
+      "threshold_c": 35,
+      "use_line_c": 35
+    },
+    "str_at_or_above": {
+      "threshold": 1,
+      "etf": 1
+    }
+  },
+  "paths": [
+    {
+      "id": "fat-stroke-1",
+      "fat_c": -5,
+      "type": "line",
+      "pdf_points": [
+        [
+          144.78,
+          572.28
+        ],
+        [
+          118.68,
+          557.28
+        ]
+      ],
+      "points": [
+        [
+          0.7301110149347703,
+          0.9216538569566026
+        ],
+        [
+          0.7001172214029946,
+          0.9129204505160082
+        ]
+      ]
+    },
+    {
+      "id": "fat-stroke-2",
+      "fat_c": -5,
+      "type": "line",
+      "pdf_points": [
+        [
+          379.62,
+          706.86
+        ],
+        [
+          162,
+          582.12
+        ]
+      ],
+      "points": [
+        [
+          0.9999862054712528,
+          1.0000099795416157
+        ],
+        [
+          0.7499000235407923,
+          0.9273829715816326
+        ]
+      ]
+    },
+    {
+      "id": "fat-stroke-3",
+      "fat_c": 0,
+      "type": "line",
+      "pdf_points": [
+        [
+          157.8,
+          560.88
+        ],
+        [
+          379.62,
+          706.86
+        ]
+      ],
+      "points": [
+        [
+          0.7450734360759089,
+          0.915016468061751
+        ],
+        [
+          0.9999862054712528,
+          1.0000099795416157
+        ]
+      ]
+    },
+    {
+      "id": "fat-stroke-4",
+      "fat_c": 0,
+      "type": "line",
+      "pdf_points": [
+        [
+          118.98,
+          535.38
+        ],
+        [
+          149.22,
+          555.24
+        ]
+      ],
+      "points": [
+        [
+          0.7004619776504862,
+          0.9001696771127403
+        ],
+        [
+          0.735213407397647,
+          0.9117327072400874
+        ]
+      ]
+    },
+    {
+      "id": "fat-stroke-5",
+      "fat_c": 5,
+      "type": "line",
+      "pdf_points": [
+        [
+          149.34,
+          524.94
+        ],
+        [
+          119.16,
+          501.12
+        ]
+      ],
+      "points": [
+        [
+          0.7353513098966437,
+          0.8940912262300866
+        ],
+        [
+          0.7006688313989813,
+          0.8802225768024228
+        ]
+      ]
+    },
+    {
+      "id": "fat-stroke-6",
+      "fat_c": 5,
+      "type": "line",
+      "pdf_points": [
+        [
+          379.62,
+          706.86
+        ],
+        [
+          158.64,
+          532.32
+        ]
+      ],
+      "points": [
+        [
+          0.9999862054712528,
+          1.0000099795416157
+        ],
+        [
+          0.7460387535688855,
+          0.8983880621988591
+        ]
+      ]
+    },
+    {
+      "id": "fat-stroke-7",
+      "fat_c": 10,
+      "type": "line",
+      "pdf_points": [
+        [
+          159,
+          503.4
+        ],
+        [
+          379.62,
+          706.86
+        ]
+      ],
+      "points": [
+        [
+          0.7464524610658756,
+          0.881550054581393
+        ],
+        [
+          0.9999862054712528,
+          1.0000099795416157
+        ]
+      ]
+    },
+    {
+      "id": "fat-stroke-8",
+      "fat_c": 10,
+      "type": "line",
+      "pdf_points": [
+        [
+          119.04,
+          466.56
+        ],
+        [
+          149.16,
+          494.34
+        ]
+      ],
+      "points": [
+        [
+          0.7005309288999846,
+          0.8601008083632932
+        ],
+        [
+          0.7351444561481486,
+          0.876275077091274
+        ]
+      ]
+    },
+    {
+      "id": "fat-stroke-9",
+      "fat_c": 15,
+      "type": "line",
+      "pdf_points": [
+        [
+          148.92,
+          455.46
+        ],
+        [
+          119.1,
+          422.94
+        ]
+      ],
+      "points": [
+        [
+          0.7348686511501553,
+          0.8536380875972532
+        ],
+        [
+          0.7005998801494829,
+          0.8347040624340445
+        ]
+      ]
+    },
+    {
+      "id": "fat-stroke-10",
+      "fat_c": 15,
+      "type": "line",
+      "pdf_points": [
+        [
+          379.62,
+          706.86
+        ],
+        [
+          157.98,
+          465.36
+        ]
+      ],
+      "points": [
+        [
+          0.9999862054712528,
+          1.0000099795416157
+        ],
+        [
+          0.7452802898244039,
+          0.8594021358480456
+        ]
+      ]
+    },
+    {
+      "id": "fat-stroke-11",
+      "fat_c": 20,
+      "type": "line",
+      "pdf_points": [
+        [
+          157.14,
+          413.76
+        ],
+        [
+          379.62,
+          706.86
+        ]
+      ],
+      "points": [
+        [
+          0.7443149723314272,
+          0.8293592176924007
+        ],
+        [
+          0.9999862054712528,
+          1.0000099795416157
+        ]
+      ]
+    },
+    {
+      "id": "fat-stroke-12",
+      "fat_c": 20,
+      "type": "line",
+      "pdf_points": [
+        [
+          118.8,
+          363.24
+        ],
+        [
+          148.56,
+          402.42
+        ]
+      ],
+      "points": [
+        [
+          0.7002551239019912,
+          0.7999451048004788
+        ],
+        [
+          0.7344549436531653,
+          0.8227567624233114
+        ]
+      ]
+    },
+    {
+      "id": "fat-stroke-13",
+      "fat_c": 35,
+      "type": "line",
+      "pdf_points": [
+        [
+          150.42,
+          254.88
+        ],
+        [
+          118.68,
+          192.3
+        ]
+      ],
+      "points": [
+        [
+          0.7365924323876136,
+          0.7368549766736245
+        ],
+        [
+          0.7001172214029946,
+          0.7004192050034647
+        ]
+      ]
+    },
+    {
+      "id": "fat-stroke-14",
+      "fat_c": 35,
+      "type": "line",
+      "pdf_points": [
+        [
+          379.62,
+          706.86
+        ],
+        [
+          156.48,
+          266.82
+        ]
+      ],
+      "points": [
+        [
+          0.9999862054712528,
+          1.0000099795416157
+        ],
+        [
+          0.7435565085869456,
+          0.7438067682003378
+        ]
+      ]
+    },
+    {
+      "id": "fat-stroke-15",
+      "fat_c": 30,
+      "type": "line",
+      "pdf_points": [
+        [
+          156.12,
+          309.3
+        ],
+        [
+          379.62,
+          706.86
+        ]
+      ],
+      "points": [
+        [
+          0.7431428010899555,
+          0.7685397752401012
+        ],
+        [
+          0.9999862054712528,
+          1.0000099795416157
+        ]
+      ]
+    },
+    {
+      "id": "fat-stroke-16",
+      "fat_c": 30,
+      "type": "line",
+      "pdf_points": [
+        [
+          118.86,
+          243
+        ],
+        [
+          149.64,
+          297.84
+        ]
+      ],
+      "points": [
+        [
+          0.7003240751514895,
+          0.7299381187726738
+        ],
+        [
+          0.7356960661441353,
+          0.7618674527194871
+        ]
+      ]
+    },
+    {
+      "id": "fat-stroke-17",
+      "fat_c": 25,
+      "type": "line",
+      "pdf_points": [
+        [
+          149.28,
+          358.08
+        ],
+        [
+          118.68,
+          311.7
+        ]
+      ],
+      "points": [
+        [
+          0.7352823586471453,
+          0.7969408129849143
+        ],
+        [
+          0.7001172214029946,
+          0.7699371202705962
+        ]
+      ]
+    },
+    {
+      "id": "fat-stroke-18",
+      "fat_c": 25,
+      "type": "line",
+      "pdf_points": [
+        [
+          379.62,
+          706.86
+        ],
+        [
+          156.9,
+          369.6
+        ]
+      ],
+      "points": [
+        [
+          0.9999862054712528,
+          1.0000099795416157
+        ],
+        [
+          0.7440391673334339,
+          0.8036480691312908
+        ]
+      ]
+    }
+  ],
+  "label_gap_policy": "inner_endpoint_interpolation",
+  "digitization": {
+    "source_file": "reference/SEI-671_Change3_8_8_2019 (701C AH-64D).pdf",
+    "source_sha256": "37a992f46dcdafaadd68b26f5e06327fafc3c013d2d7b67ccb40bace189c5bc4",
+    "printed_page": "0125 00-14",
+    "page_change_marking": "Change 2",
+    "drawing": "1163380-01",
+    "calibration": {
+      "etf": {
+        "scale": 0.0011491874916389141,
+        "offset": 0.5637316498952882,
+        "ticks": [
+          {
+            "pdf_coordinate": 118.56,
+            "value": 0.7
+          },
+          {
+            "pdf_coordinate": 205.62,
+            "value": 0.7999999999999999
+          },
+          {
+            "pdf_coordinate": 292.62,
+            "value": 0.8999999999999999
+          },
+          {
+            "pdf_coordinate": 379.62,
+            "value": 1
+          }
+        ],
+        "max_residual": 0.00002758192608184884
+      },
+      "str": {
+        "scale": 0.0005822270960396284,
+        "offset": 0.5884569344350441,
+        "ticks": [
+          {
+            "pdf_coordinate": 191.58,
+            "value": 0.7
+          },
+          {
+            "pdf_coordinate": 277.44,
+            "value": 0.75
+          },
+          {
+            "pdf_coordinate": 363.36,
+            "value": 0.7999999999999999
+          },
+          {
+            "pdf_coordinate": 449.22,
+            "value": 0.85
+          },
+          {
+            "pdf_coordinate": 535.08,
+            "value": 0.8999999999999999
+          },
+          {
+            "pdf_coordinate": 620.94,
+            "value": 0.95
+          },
+          {
+            "pdf_coordinate": 706.86,
+            "value": 1
+          }
+        ],
+        "max_residual": 0.00001497255010896037
+      },
+      "full_etf_axis_sensitivity": {
+        "scale": 0.001147681992806625,
+        "offset": 0.5640413456097022,
+        "ticks": [
+          {
+            "pdf_coordinate": 118.56,
+            "value": 0.7
+          },
+          {
+            "pdf_coordinate": 205.62,
+            "value": 0.7999999999999999
+          },
+          {
+            "pdf_coordinate": 292.62,
+            "value": 0.8999999999999999
+          },
+          {
+            "pdf_coordinate": 379.62,
+            "value": 1
+          },
+          {
+            "pdf_coordinate": 467.22,
+            "value": 1.1
+          }
+        ],
+        "max_residual": 0.0002756162810468865
+      }
+    },
+    "method": "Four ETF major ticks from 0.70 through 1.00 and seven STR major ticks from 0.70 through 1.00; independent least-squares affine calibration. Original 18 straight strokes are retained, two per FAT label. Integer hundredths preserve PDF coordinates; chart coordinates are not decimal-truncated.",
+    "etf_calibration_choice": "All performance strokes lie in ETF 0.70–1.00. The 1.10 right frame deviates from the spacing of the other major ticks; including it increases maximum tick residual from about 0.0000276 to 0.0002756. Keep the source-axis extent separately, without forcing the common vertex to (1,1).",
+    "gap_evidence": "The gaps coincide with FAT text labels, supporting annotation interruptions, but the two strokes are not exactly collinear. No bridging algorithm is specified in section 18.e or Figure 8 notes. Phase 3 approves computational interpolation only between the reviewed inner endpoints; this is an application choice, not a PDF path or explicit SEI rule.",
+    "limitations": "Calibration residuals and numerical precision are not certified SEI accuracy. FAT interpolation is an application choice. No source stroke is extended, joined or moved to force the published ETF 0.93 example."
+  }
 }

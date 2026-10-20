@@ -1,0 +1,71 @@
+name: Publish reviewed runtime to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Require the existing Pages site to use Actions
+        env:
+          PAGES_READ_TOKEN: ${{ github.token }}
+        run: |
+          node <<'NODE'
+          (async () => {
+            const url = `${process.env.GITHUB_API_URL}/repos/${process.env.GITHUB_REPOSITORY}/pages`;
+            const response = await fetch(url, {
+              headers: { Authorization: `Bearer ${process.env.PAGES_READ_TOKEN}`, 'User-Agent': 'pages-source-check' },
+              signal: AbortSignal.timeout(15000)
+            });
+            if (!response.ok) throw new Error(`Cannot verify Pages settings: HTTP ${response.status}`);
+            const settings = await response.json();
+            if (settings.build_type !== 'workflow') throw new Error('Set Settings > Pages > Source to GitHub Actions before publishing.');
+          })().catch(error => { console.error(error.message); process.exitCode = 1; });
+          NODE
+      - name: Test the publication boundary
+        run: node --test tests/pages-artifact.test.cjs
+      - name: Build exact runtime artifact
+        run: node scripts/build-pages.cjs
+      - name: Verify artifact before upload
+        run: node scripts/build-pages.cjs --verify
+      - name: Configure existing Pages site
+        uses: actions/configure-pages@v5
+        with:
+          enablement: false
+      - name: Upload runtime only
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: artifacts/pages
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy verified artifact
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>SEI ETF Calculator</title>
+    <title>ETF / ATF Calculator | AH-64DHA</title>
 
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -13,8 +13,17 @@
 
     <main class="container">
 
-        <h1>SEI ETF Calculator</h1>
-        <p class="subtitle">Engine Torque Factor Calculator</p>
+        <h1>ETF / ATF Calculator</h1>
+        <p class="subtitle">AH-64DHA · T701C - T701D/CC · SEI-671</p>
+
+        <div class="engine-surface">
+        <svg class="engine-outline" aria-hidden="true" focusable="false"><path></path></svg>
+        <div class="engine-tabs" role="tablist" aria-label="Engine">
+            <button type="button" id="engine-tab-1" role="tab" aria-selected="true" aria-controls="engine-panel" tabindex="0">Engine 1</button>
+            <button type="button" id="engine-tab-2" role="tab" aria-selected="false" aria-controls="engine-panel" tabindex="-1">Engine 2</button>
+        </div>
+
+        <div id="engine-panel" role="tabpanel" aria-labelledby="engine-tab-1">
 
         <section class="input-section">
 
@@ -22,32 +31,32 @@
 
             <div class="form-group">
                 <label for="fat">FAT (°C)</label>
-                <input type="number" id="fat" step="1">
+                <input type="number" id="fat" required min="-55" max="55" step="any">
             </div>
 
             <div class="form-group">
                 <label for="pa">Pressure Altitude (ft)</label>
-                <input type="number" id="pa" step="1">
+                <input type="number" id="pa" required min="0" max="10000" step="any">
             </div>
 
             <div class="form-group">
                 <label for="kias">KIAS</label>
-                <input type="number" id="kias" step="1">
+                <input type="number" id="kias" required min="90" max="160" step="1">
             </div>
 
             <div class="form-group">
                 <label for="trq">TRQ (%)</label>
-                <input type="number" id="trq" step="0.1">
+                <input type="number" id="trq" required min="0" max="100" step="any">
             </div>
 
             <div class="form-group">
                 <label for="tgt">TGT (°C)</label>
-                <input type="number" id="tgt" step="1">
+                <input type="number" id="tgt" required min="0" step="any">
             </div>
 
             <div class="form-group">
                 <label for="ng">NG (%)</label>
-                <input type="number" id="ng" step="0.1">
+                <input type="number" id="ng" required min="0" step="any">
             </div>
 
             <button id="calculate-btn" type="button">
@@ -57,55 +66,66 @@
         </section>
 
 
-        <section class="results-section">
+        <section class="results-section" id="engine-results">
 
             <h2>ETF Calculation</h2>
 
             <div class="result-row">
                 <span>TSF</span>
-                <strong id="result-tsf">---</strong>
+                <strong id="result-tsf">&mdash;</strong>
             </div>
 
             <div class="result-row">
                 <span>%TRQTSF</span>
-                <strong id="result-trqtsf">---</strong>
+                <strong id="result-trqtsf">&mdash;</strong>
             </div>
 
             <div class="result-row">
                 <span>Target TGTREF</span>
-                <strong id="result-tgtref">---</strong>
+                <strong id="result-tgtref">&mdash;</strong>
             </div>
 
             <div class="result-row">
                 <span>ΔTGT</span>
-                <strong id="result-delta-tgt">---</strong>
+                <strong id="result-delta-tgt">&mdash;</strong>
             </div>
 
             <div class="result-row">
                 <span>ΔTRQ / ΔTGT</span>
-                <strong id="result-delta-factor">---</strong>
+                <strong id="result-delta-factor">&mdash;</strong>
             </div>
 
             <div class="result-row">
                 <span>TRQADJ</span>
-                <strong id="result-trqadj">---</strong>
+                <strong id="result-trqadj">&mdash;</strong>
             </div>
 
             <div class="result-row">
                 <span>TTV</span>
-                <strong id="result-ttv">---</strong>
+                <strong id="result-ttv">&mdash;</strong>
             </div>
 
             <div class="result-row">
                 <span>STR</span>
-                <strong id="result-str">---</strong>
+                <strong id="result-str">&mdash;</strong>
             </div>
 
             <div class="result-row final-result">
                 <span>ETF</span>
-                <strong id="result-etf">---</strong>
+                <strong id="result-etf">&mdash;</strong>
             </div>
 
+        </section>
+
+        </div>
+        </div>
+
+        <section class="results-section aircraft-summary" aria-label="Aircraft torque factors" aria-live="polite">
+            <h2>Aircraft Torque Factor</h2>
+            <div class="result-row"><span>Engine 1 ETF</span><strong id="engine-1-etf">&mdash;</strong></div>
+            <div class="result-row"><span>Engine 2 ETF</span><strong id="engine-2-etf">&mdash;</strong></div>
+            <div class="result-row final-result"><span>ATF</span><strong id="result-atf">&mdash;</strong></div>
+            <p id="atf-status" role="status" hidden></p>
         </section>
 
         <p class="warning">
@@ -117,6 +137,8 @@
 
     <script src="js/interpolation.js"></script>
     <script src="js/calculator.js"></script>
+    <script src="js/engines.js"></script>
+    <script src="js/engine-outline.js"></script>
 
 </body>
 </html>
